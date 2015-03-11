@@ -69,9 +69,9 @@ def yield_all_images( location='/media/raid0/data/nickel/follow/' ):
             if re.search(rx, f):
                 yield '%s/%s' %(root,f)
 
-def get_info_from_fitsfile( fitsfile ):
+def get_info_image_fitsfile( fitsfile ):
     """
-    Takes in the path to a fitsfile and attempts to pull 
+    Takes in the path to an image fitsfile and attempts to pull
      from it several useful bits of information.
     
     Returns a dictionary of:
@@ -82,8 +82,66 @@ def get_info_from_fitsfile( fitsfile ):
       dec_d (degrees, float),
       exptime (seconds, float),
       date (string),
+      utc (string),
       date_mjd (MJD, float),
-      air mass (float),
+      airmass (float),
+      observatory (string),
+      instrument (string),
+      observer (string)
+    """
+    hdu = pf.open( fitsfile )
+    head = hdu[0].header
+    
+    ks = [ ['object','object'],
+           ['ra','ra'],
+           ['dec','dec'],
+           ['ra_d','ra'],
+           ['dec_d','dec'],
+           ['exptime','exposure'],
+           ['date','date-obs'],
+           ['utc','time'],
+           ['date_mjd','mjd-obs'],
+           ['airmass','airmass'],
+           ['observatory','telescop'],
+           ['instrument','instrume'],
+           ['observer','observer'] ]
+    
+    outdict = {}
+    for outk, fitsk in ks:
+        try:
+            val = head[fitsk]
+        except:
+            val = None
+        if val == None:
+            pass
+        elif outk in ['exptime','date_mjd','airmass']:
+            val = float(val)
+        elif outk == 'ra_d':
+            val = _parse_ra( val )
+        elif outk == 'dec_d':
+            val = _parse_dec( val )
+        else:
+            val = val.strip()
+        outdict[outk] = val
+
+    return outdict    
+
+def get_info_spec_fitsfile( fitsfile ):
+    """
+    Takes in the path to a spectrum fitsfile and attempts to pull 
+     from it several useful bits of information.
+    
+    Returns a dictionary of:
+     {object (string),
+      ra (string),
+      dec (string),
+      ra_d (degrees, float),
+      dec_d (degrees, float),
+      exptime (seconds, float),
+      date (string),
+      utc (string),
+      date_mjd (MJD, float),
+      airmass (float),
       observatory (string),
       instrument (string),
       observer (string),
@@ -113,12 +171,16 @@ def get_info_from_fitsfile( fitsfile ):
             val = head[fitsk]
         except:
             val = None
-        if outk in ['exptime','date_mjd','airmass']:
+        if val == None:
+            pass
+        elif outk in ['exptime','date_mjd','airmass']:
             val = float(val)
         elif outk == 'ra_d':
             val = _parse_ra( val )
         elif outk == 'dec_d':
             val = _parse_dec( val )
+        else:
+            val = val.strip()
         outdict[outk] = val
     
     return outdict
