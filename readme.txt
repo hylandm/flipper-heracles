@@ -6,8 +6,6 @@ Created March 2015
   - Michael Hyland
   - Isaac Shivvers
 
-Testing 123
-
 Quick Examples:
 
 # find a spectrum, and get some info about it
