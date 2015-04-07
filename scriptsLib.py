@@ -185,6 +185,18 @@ def get_info_spec_fitsfile( fitsfile ):
     
     return outdict
 
+def parse_filename( f ):
+    """
+    Parses a *.flm file for observation date and object name.
+    Returns (year, month, day), object_name
+    """
+    datestring = re.search('\d{8}(\.\d+)?', f).group()
+    y = int(datestring[:4])
+    m = int(datestring[4:6])
+    d = float(datestring[6:])
+    obj = f.split(datestring)[0].strip('-')
+    return (y,m,d), obj
+
 
 ##########################################
 # helper functions
