@@ -1,7 +1,0 @@
-**Fill Filter columns in photometry.
-  
-**Fill Instrument column in Spectra and spectralruns and photometry.
-
-**Fill telescope column in spectralruns
-
-**Give each object multiple names in object table if needed (delineate using "|"). 
