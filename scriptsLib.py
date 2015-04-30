@@ -104,6 +104,7 @@ def get_info_image_fitsfile( fitsfile ):
            ['ra_d','ra'],
            ['dec_d','dec'],
            ['exptime','exposure'],
+           ['exptime2','exptime'],
            ['date','date'],
            ['utc','time'],
            ['date_mjd','mjd-obs'],

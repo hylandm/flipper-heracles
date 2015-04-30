@@ -29,10 +29,7 @@ import re
 DB = MySQLdb.connect(host=creds.host, user=creds.user, passwd=creds.passwd, db='newsndb')
 c = DB.cursor()
 
-allkait = yield_all_images( location='/media/raid0/Data/kait/' )
-allnickel = yield_all_images( location='/media/raid0/Data/nickel/' )
-
-for image in allkait:
+def insert_image( image ):
     fpath,fname = os.path.split(image)
     # see if it's already in the DB
     cmd = "SELECT * FROM images WHERE ((Filename = '%s') AND (Filepath = '%s'));" %(fname,fpath)
@@ -45,7 +42,6 @@ for image in allkait:
         continue
     print 'adding',fpath,fname
     info = get_info_image_fitsfile(image)
-    cmd = "INSERT INTO images (Filename, Filepath, Filter, ObjName, RA, Decl, Instrument, Telescope, UT_Date, Exposure) VALUES (%s, %s, %s, %s, %f, %f, %s, %s, %s, %d);"
     # parse filtername
     if info['filter']:
         filt = info['filter']
@@ -57,8 +53,26 @@ for image in allkait:
             filt = re.findall('[BVRI]\.fit', fname)[0][0]
         except IndexError:
             filt = None
+    # find exposure time
+    if info['exptime']:
+        exp = info['exptime']
+    elif info['exptime2']:
+        exp = info['exptime2']
+    else:
+        exp = 0.0
+    # translate nones into nulls
+    for k in info.keys():
+        if info[k] == None:
+            info[k] = 'NULL'
     cmd = cmd %(fname, fpath, filt, info['object'], info['ra_d'], info['dec_d'],
                 info['instrument'], info['telescope'], info['date'], info['exptime'])
     print cmd
     # c.execute(cmd)
+
+
+for image in yield_all_images( location='/media/raid0/Data/kait/' ):
+    insert_image( image )
+for image in yield_all_images( location='/media/raid0/Data/nickel/' ):
+    insert_image( image )
+
     
