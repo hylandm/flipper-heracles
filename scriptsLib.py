@@ -83,7 +83,7 @@ def get_info_image_fitsfile( fitsfile ):
         # probably a zcatted file
         p = Popen(["zcat", fitsfile], stdout=PIPE)
         hdu = pf.open( StringIO(p.communicate()[0]) )
-    hdu.verify()
+    hdu.verify('fix')
     head = hdu[0].header
     
     ks = [ ['object','object'],
@@ -112,7 +112,6 @@ def get_info_image_fitsfile( fitsfile ):
                 val = None
         else:
             val = head[fitsk]
-        print val
         if val == None:
             pass
         elif outk in ['exptime','exptime2','date_mjd','airmass']:

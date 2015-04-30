@@ -10,7 +10,7 @@ CREATE TABLE images
 ImgID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 Filename VARCHAR(200) NOT NULL,
 Filepath VARCHAR(200) NOT NULL,
-Filter VARCHAR(4),
+Filter VARCHAR(10),
 ObjName VARCHAR(50),
 RA FLOAT NOT NULL,
 Decl FLOAT NOT NULL,
@@ -62,7 +62,7 @@ def insert_image( image ):
         exp = 0.0
     # translate nones into nulls
     for k in info.keys():
-        if info[k] == None:
+        if not info[k]:
             info[k] = 'NULL'
     cmd = "INSERT INTO images (Filename, Filepath, Filter, ObjName, RA, Decl, Instrument, Telescope, UT_Date, Exposure) \n"+\
           "VALUES (%s, %s, %s, %s, %f, %f, %s, %s, %s, %d);"
