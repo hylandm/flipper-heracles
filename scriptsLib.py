@@ -104,11 +104,13 @@ def get_info_image_fitsfile( fitsfile ):
     
     outdict = {}
     for outk, fitsk in ks:
-        print outk,fitsk
-        try:
-            val = head[fitsk]
-        except:
-            val = None
+        if outk != 'filter':
+            continue
+        val = head[fitsk]
+        # try:
+        #     val = head[fitsk]
+        # except:
+        #     val = None
         print val
         if val == None:
             pass

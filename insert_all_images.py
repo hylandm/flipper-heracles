@@ -67,7 +67,7 @@ def insert_image( image ):
     cmd = "INSERT INTO images (Filename, Filepath, Filter, ObjName, RA, Decl, Instrument, Telescope, UT_Date, Exposure) "+\
           "VALUES (%s, %s, %s, %s, %f, %f, %s, %s, %s, %d);"
     cmd = cmd %(fname, fpath, filt, info['object'], info['ra_d'], info['dec_d'],
-                info['instrument'], info['telescope'], info['date'], info['exptime'])
+                info['instrument'], info['telescope'], info['date'], exp)
     print cmd
     # c.execute(cmd)
     return
