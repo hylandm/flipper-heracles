@@ -104,10 +104,12 @@ def get_info_image_fitsfile( fitsfile ):
     
     outdict = {}
     for outk, fitsk in ks:
+        print outk,fitsk
         try:
             val = head[fitsk]
         except:
             val = None
+        print val
         if val == None:
             pass
         elif outk in ['exptime','exptime2','date_mjd','airmass']:
@@ -119,7 +121,6 @@ def get_info_image_fitsfile( fitsfile ):
         else:
             val = val.strip()
         outdict[outk] = val
-    import pdb; pdb.set_trace()
 
     return outdict    
 
