@@ -75,20 +75,7 @@ def get_info_image_fitsfile( fitsfile ):
     Takes in the path to an image fitsfile and attempts to pull
      from it several useful bits of information.
     
-    Returns a dictionary of:
-     {object (string),
-      ra (string),
-      dec (string),
-      ra_d (degrees, float),
-      dec_d (degrees, float),
-      exptime (seconds, float),
-      date (string),
-      utc (string),
-      date_mjd (MJD, float),
-      airmass (float),
-      observatory (string),
-      instrument (string),
-      observer (string)
+    Returns a dictionary containing the relevant header items.
     """
     try:
         hdu = pf.open( fitsfile )
@@ -123,7 +110,7 @@ def get_info_image_fitsfile( fitsfile ):
             val = None
         if val == None:
             pass
-        elif outk in ['exptime','date_mjd','airmass']:
+        elif outk in ['exptime','exptime2','date_mjd','airmass']:
             val = float(val)
         elif outk == 'ra_d':
             val = _parse_ra( val )

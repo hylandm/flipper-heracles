@@ -39,7 +39,7 @@ def insert_image( image ):
     except MySQLdb.OperationalError:
         # this image already in DB; just move on
         print fpath,fname,'already in DB.'
-        continue
+        return
     print 'adding',fpath,fname
     info = get_info_image_fitsfile(image)
     # parse filtername
@@ -68,6 +68,7 @@ def insert_image( image ):
                 info['instrument'], info['telescope'], info['date'], info['exptime'])
     print cmd
     # c.execute(cmd)
+    return
 
 
 for image in yield_all_images( location='/media/raid0/Data/kait/' ):
