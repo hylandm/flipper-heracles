@@ -69,6 +69,7 @@ def insert_image( image ):
     cmd = cmd %(fname, fpath, filt, info['object'], info['ra_d'], info['dec_d'],
                 info['instrument'], info['telescope'], info['date'], exp)
     print cmd
+    raw_input('\n...\n')
     # c.execute(cmd)
     return
 
