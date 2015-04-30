@@ -83,6 +83,7 @@ def get_info_image_fitsfile( fitsfile ):
         # probably a zcatted file
         p = Popen(["zcat", fitsfile], stdout=PIPE)
         hdu = pf.open( StringIO(p.communicate()[0]) )
+    hdu.verify()
     head = hdu[0].header
     
     ks = [ ['object','object'],
@@ -104,13 +105,10 @@ def get_info_image_fitsfile( fitsfile ):
     
     outdict = {}
     for outk, fitsk in ks:
-        if outk != 'filter':
-            continue
-        val = head[fitsk]
-        # try:
-        #     val = head[fitsk]
-        # except:
-        #     val = None
+        try:
+            val = head[fitsk]
+        except:
+            val = None
         print val
         if val == None:
             pass
