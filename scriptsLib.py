@@ -11,7 +11,8 @@ from os import walk, path
 import re
 import pyfits as pf
 from difflib import get_close_matches
-
+from cStringIO import StringIO
+from subprocess import Popen,PIPE
 
 
 def yield_all_spectra( location='/media/raid0/data/spectra/' ):
@@ -89,7 +90,12 @@ def get_info_image_fitsfile( fitsfile ):
       instrument (string),
       observer (string)
     """
-    hdu = pf.open( fitsfile )
+    try:
+        hdu = pf.open( fitsfile )
+    except IOError:
+        # probably a zcatted file
+        p = Popen(["zcat", fitsfile], stdout=PIPE)
+        hdu = pf.open( StringIO(p.communicate()[0]) )
     head = hdu[0].header
     
     ks = [ ['object','object'],
@@ -98,13 +104,15 @@ def get_info_image_fitsfile( fitsfile ):
            ['ra_d','ra'],
            ['dec_d','dec'],
            ['exptime','exposure'],
-           ['date','date-obs'],
+           ['date','date'],
            ['utc','time'],
            ['date_mjd','mjd-obs'],
            ['airmass','airmass'],
-           ['observatory','telescop'],
+           ['telescope','telescop'],
            ['instrument','instrume'],
-           ['observer','observer'] ]
+           ['observer','observer'],
+           ['filter','filters'],
+           ['filter2','filtnam'] ]
     
     outdict = {}
     for outk, fitsk in ks:
