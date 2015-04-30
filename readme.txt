@@ -28,26 +28,6 @@ Quick Examples:
 TO DO
 #############################################
 
-- create images table
-- populate it using yeild_all_images
+- populate images table using yeild_all_images
 - have an inotify script that adds images when added
 - have a rare cronjob that scans for all images and adds them
-
-CREATE TABLE images
-(
-ImgID INT,
-Filename VARCHAR(200),
-Filepath VARCHAR(200),
-Filter VARCHAR(4),
-ObjName VARCHAR(50),
-RA FLOAT,
-Decl FLOAT,
-MinRA FLOAT,
-MaxRA FLOAT,
-MinDecl FLOAT,
-MaxDecl FLOAT,
-Instrument VARCHAR(50),
-Telescope VARCHAR(45),
-UT_Date DATE,
-Exposure INT
-);

@@ -2,11 +2,28 @@
 Goes through all images the code can find and inserts them into
  the database.
 
+
+The mysql definition of the images table:
+
+CREATE TABLE images
+(
+ImgID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+Filename VARCHAR(200) NOT NULL,
+Filepath VARCHAR(200) NOT NULL,
+Filter VARCHAR(4),
+ObjName VARCHAR(50),
+RA FLOAT NOT NULL,
+Decl FLOAT NOT NULL,
+Instrument VARCHAR(50),
+Telescope VARCHAR(45),
+UT_Date DATE NOT NULL,
+Exposure INT
+);
 """
 import MySQLdb
 from scriptsLib import yield_all_images,get_info_image_fitsfile
-
-DB = MySQLdb.connect(host=c.host, user=c.user, passwd=c.passwd, db='newsndb')
+import credentials as creds
+DB = MySQLdb.connect(host=creds.host, user=creds.user, passwd=creds.passwd, db='newsndb')
 c = DB.cursor()
 
 allkait = yield_all_images( location='/media/raid0/Data/kait/' )
@@ -40,5 +57,5 @@ for image in allkait:
     cmd = cmd %(fname, fpath, filt, info['object'], info['ra_d'], info['dec_d'],
                 info['instrument'], info['telescope'], info['date'], info['exptime'])
     print cmd
-    c.execute(cmd)
+    # c.execute(cmd)
     
