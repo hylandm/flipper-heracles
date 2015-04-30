@@ -64,6 +64,8 @@ def insert_image( image ):
     for k in info.keys():
         if info[k] == None:
             info[k] = 'NULL'
+    cmd = "INSERT INTO images (Filename, Filepath, Filter, ObjName, RA, Decl, Instrument, Telescope, UT_Date, Exposure) "+\
+          "VALUES (%s, %s, %s, %s, %f, %f, %s, %s, %s, %d);"
     cmd = cmd %(fname, fpath, filt, info['object'], info['ra_d'], info['dec_d'],
                 info['instrument'], info['telescope'], info['date'], info['exptime'])
     print cmd

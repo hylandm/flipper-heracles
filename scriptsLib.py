@@ -119,6 +119,7 @@ def get_info_image_fitsfile( fitsfile ):
         else:
             val = val.strip()
         outdict[outk] = val
+    import pdb; pdb.set_trace()
 
     return outdict    
 
