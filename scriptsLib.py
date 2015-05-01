@@ -105,13 +105,10 @@ def get_info_image_fitsfile( fitsfile ):
     
     outdict = {}
     for outk, fitsk in ks:
-        if fitsk != 'filters':
-            try:
-                val = head[fitsk]
-            except:
-                val = None
-        else:
+        try:
             val = head[fitsk]
+        except:
+            val = None
         if val == None:
             pass
         elif outk in ['exptime','exptime2','date_mjd','airmass']:

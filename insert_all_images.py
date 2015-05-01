@@ -31,17 +31,22 @@ c = DB.cursor()
 
 def insert_image( image ):
     fpath,fname = os.path.split(image)
+    # trim the fpath relative to the Data directory
+    fpath = fpath.split('raid0/')[1]
     # see if it's already in the DB
     cmd = "SELECT * FROM images WHERE ((Filename = '%s') AND (Filepath = '%s'));" %(fname,fpath)
+    print cmd
     c.execute(cmd)
-    try:
-        c.fetchone()
-    except MySQLdb.OperationalError:
+    res = c.fetchone()
+    if res != None:
         # this image already in DB; just move on
         print fpath,fname,'already in DB.'
         return
     print 'adding',fpath,fname
     info = get_info_image_fitsfile(image)
+    # ignore calibration images
+    if info['object'] in ['bias','dark','flat']:
+        return
     # parse filtername
     if info['filter']:
         filt = info['filter']
@@ -65,18 +70,25 @@ def insert_image( image ):
         if not info[k]:
             info[k] = 'NULL'
     cmd = "INSERT INTO images (Filename, Filepath, Filter, ObjName, RA, Decl, Instrument, Telescope, UT_Date, Exposure) \n"+\
-          "VALUES (%s, %s, %s, %s, %f, %f, %s, %s, %s, %d);"
+          "VALUES ('%s', '%s', '%s', '%s', %f, %f, '%s', '%s', '%s', %d);"
     cmd = cmd %(fname, fpath, filt, info['object'], info['ra_d'], info['dec_d'],
                 info['instrument'], info['telescope'], info['date'], exp)
     print cmd
-    raw_input('\n...\n')
-    # c.execute(cmd)
+    c.execute(cmd)
+    DB.commit()
+    #raw_input()
     return
 
 
 for image in yield_all_images( location='/media/raid0/Data/kait/' ):
-    insert_image( image )
+    try:
+        insert_image( image )
+    except:
+        open('failed_files.txt','a').write('%s\n'%image)
 for image in yield_all_images( location='/media/raid0/Data/nickel/' ):
-    insert_image( image )
+    try:
+        insert_image( image )
+    except:
+        open('failed_files.txt','a').write('%s\n'%image)
 
     
