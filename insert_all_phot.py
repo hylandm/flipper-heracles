@@ -10,6 +10,7 @@ CREATE TABLE photometry
 PhotID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 ObjID INT NOT NULL,
 Filename VARCHAR(200) NOT NULL,
+Filepath VARCHAR(200) NOT NULL,
 Filters VARCHAR(200),
 Telescopes VARCHAR(200),
 FirstObs DATE,
@@ -90,9 +91,9 @@ def insert_photfile( f ):
     firstobs, lastobs, filters, telescopes, npoints = parse_photfile( f )
     firstobs = '%d-%d-%d'%(firstobs[0],firstobs[1],firstobs[2])
     lastobs = '%d-%d-%d'%(lastobs[0],lastobs[1],lastobs[2])
-    cmd = "INSERT INTO photometry (ObjID, Filename, Filters, Telescopes, FirstObs, LastObs, Reducer, NPoints, Notes, Reference, DateReduced, Public) \n"+\
-          "VALUES (%d, '%s', '%s', '%s', DATE('%s'), DATE('%s'), '%s', %d, '%s', '%s', DATE('%s'), %d);"
-    cmd = cmd %(objid, fname, filters, telescopes, firstobs, lastobs, reducer, npoints, notes, ref, datereduced, pub)
+    cmd = "INSERT INTO photometry (ObjID, Filename, Filepath, Filters, Telescopes, FirstObs, LastObs, Reducer, NPoints, Notes, Reference, DateReduced, Public) \n"+\
+          "VALUES (%d, '%s', '%s', '%s', '%s', DATE('%s'), DATE('%s'), '%s', %d, '%s', '%s', DATE('%s'), %d);"
+    cmd = cmd %(objid, fname, fpath, filters, telescopes, firstobs, lastobs, reducer, npoints, notes, ref, datereduced, pub)
     print cmd
     c.execute(cmd)
     DB.commit()
