@@ -28,6 +28,7 @@ Quick Examples:
 TO DO
 #############################################
 
-- populate images table using yeild_all_images
-- have an inotify script that adds images when added
-- have a rare cronjob that scans for all images and adds them
+- have an inotify script that adds files appropriately
+- have a rare cronjob that scans for loose ends
+- what's the deal with photometry of SN2008td?
+- clean up final issues with database (see other lists)

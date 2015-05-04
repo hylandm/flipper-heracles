@@ -72,10 +72,13 @@ def insert_photfile( f ):
     if res != None:
         objid = res['ObjID']
     else:
-        # need to add object first!
-        open('missing_object.txt','a').write('%s\n' %f)
-        print f,'has no object entry.'
-        return
+        if fname == 'ptf12gzk.dat':
+            objid = 6353
+        else:
+            # need to add object first!
+            open('missing_object.txt','a').write('%s\n' %f)
+            print f,'has no object entry.'
+            return
     reducer = 'NULL'
     notes = 'NULL'
     datereduced = 'NULL'
