@@ -20,7 +20,7 @@ NPoints INT(4),
 Notes TEXT,
 Reference TEXT,
 DateReduced DATE,
-Public TINYINT NOT NULL
+Public TINYINT NOT NULL DEFAULT 0
 );
 """
 from glob import glob
