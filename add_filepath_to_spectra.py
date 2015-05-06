@@ -23,7 +23,7 @@ for entry in s:
     print 'adding',fflm
     fpath, fname = os.path.split( fflm )
     fpath = fpath.split('raid0/')[1]
-    sql = "UPDATE spectra SET Filepath='%s' WHERE Filename='%s' LIMIT 1;"%(fpath, fname)
+    sql = "UPDATE spectra SET Filepath='%s' WHERE Filename='%s';"%(fpath, fname)
     print sql
     print c.execute( sql )
     DB.commit()
