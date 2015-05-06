@@ -15,12 +15,14 @@ from cStringIO import StringIO
 from subprocess import Popen,PIPE
 
 
-def yield_all_spectra( location='/media/raid0/data/spectra/' ):
+def yield_all_spectra( location='/media/raid0/Data/spectra/', include_details_flm=False ):
     """
     Searches <location> (and subfolders) for all spectra.
     Finds all files named like *.flm and attempts to associate each with 
     a .fits file in the same folder (or a subfolder).
     This is an iterator, and returns paths as strings (flm, fit) one at a time.
+
+    If include_details_flm == True, will include *.flm files found in a '/details/' subfolder.
     
     Example: 
      > s = yield_all_spectra()
@@ -50,9 +52,13 @@ def yield_all_spectra( location='/media/raid0/data/spectra/' ):
                                 break
                 # record the best matching fits file, or None if no good match found
                 fit = matching_fits
+                if not include_details_flm:
+                    # do not return this pair if the flm file is in a details subfolder
+                    if re.search('details', flm):
+                        continue
                 yield flm, fit
  
-def yield_all_images( location='/media/raid0/data/nickel/follow/' ):
+def yield_all_images( location='/media/raid0/Data/nickel/follow/' ):
     """
     Searches <location> (and subfolders) for all images.
     Finds all files named like *.fit, *.fit.Z, *.fits, *.fits.Z, *.fts, *.fts.Z
