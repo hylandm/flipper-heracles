@@ -20,16 +20,27 @@ def parse_filename( f ):
 
 DB = MySQLdb.connect(host=creds.host, user=creds.user, passwd=creds.passwd, db='newsndb', cursorclass=MySQLdb.cursors.DictCursor)
 
-sqlfind = 'SELECT SpecID,Filename,UT_Date FROM spectra WHERE UT_Date IS NULL LIMIT 1;'
+sqlfind = 'SELECT SpecID,Filename,UT_Date FROM spectra WHERE UT_Date IS NULL;'
 c = DB.cursor()
+c.execute( sqlfind )
+failed = []
 while True:
-    c.execute( sqlfind )
     res = c.fetchone()
     if res == None:
         print 'all done'
         break
-    datenum = float( parse_filename(res['Filename']) )
+    if res['SpecID'] in failed:
+        continue
+    print res['Filename']
+    try:
+        datenum = float( parse_filename(res['Filename']) )
+    except:
+        failed.append( res['SpecID'] )
+        continue
     sqlupdate = 'UPDATE spectra SET UT_Date=%f WHERE SpecID=%d;'%(datenum,int(res['SpecID']))
-    print res['Filename'],':::',sqlupdate
+    print sqlupdate
+    print
     c.execute( sqlupdate )
     DB.commit()
+    c.execute( sqlfind )
+
