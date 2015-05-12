@@ -20,7 +20,8 @@ def parse_filename( f ):
 
 DB = MySQLdb.connect(host=creds.host, user=creds.user, passwd=creds.passwd, db='newsndb', cursorclass=MySQLdb.cursors.DictCursor)
 
-sqlfind = 'SELECT SpecID,Filename,UT_Date FROM spectra WHERE UT_Date IS NULL;'
+# get the date from the filename
+sqlfind = 'SELECT SpecID,Filename,UT_Date,RunID FROM spectra WHERE UT_Date IS NULL;'
 c = DB.cursor()
 c.execute( sqlfind )
 failed = []
