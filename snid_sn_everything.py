@@ -100,6 +100,7 @@ def runAllFlipperSpec( skipstrs=[], rootdir='/media/raid0/Data/spectra/', maxnum
         if res == None:
             #open('snid_missing_DB.txt','a').write('%s\n'%s[0])
             continue
+        print s[0]
         SpecID = res.get('SpecID')
         # don't include any files that match one of the skipstrs
         if not any( [1 if ss in fname else 0 for ss in skipstrs] ):
@@ -114,7 +115,7 @@ def runAllFlipperSpec( skipstrs=[], rootdir='/media/raid0/Data/spectra/', maxnum
     print 'starting SNID calculations...'
     pool = multiprocessing.Pool( multiprocessing.cpu_count() )
     pool.map( do_it_all, fs )
-    #map( do_it_all, fs )
 
    
-
+if __name__ == '__main__':
+    runAllFlipperSpec()
