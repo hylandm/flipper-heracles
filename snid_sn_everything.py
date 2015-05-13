@@ -23,24 +23,30 @@ def getSNID( flmfile ):
     # if SNID found no matches at all, quit here
     if re.search('Thank you for using SNID! Goodbye.',o) == None:
         return 'NoMatch','NoMatch'
+
     typestring,subtypestring = o.split('Best subtype(s)')
     # find the best types first
     lines = typestring.split('\n')
     iii = lines.index(' [fraction]') +1
-    ftype = lines[iii][18:25].strip()
+    ftype = lines[iii].split()[2]
     iii = lines.index(' [slope]') +1
-    stype = lines[iii][18:25].strip()
-    if stype == 'opes':
+    if 'NOTE' in lines[iii]:
         stype = ftype
+    else:
+        stype = lines[iii].split()[2]
+    t = set([ftype,stype])
     t = ','.join(set([ftype,stype]))
+
     # now find best subtypes:
     lines = subtypestring.split('\n')[:10]
     iii = lines.index(' [fraction]') +1
-    ftype = lines[iii][32:45].strip()
+    ftype = lines[iii].split()[3]
     iii = lines.index(' [slope]') +1
-    stype = lines[iii][32:45].strip()
-    if stype == 'opes':
+    if 'NOTE' in lines[iii]:
         stype = ftype
+    else:
+        stype = lines[iii].split()[3]
+    st = set([ftype,stype])
     st = ','.join(set([ftype,stype]))
     return t, st
 
@@ -56,7 +62,7 @@ def getSN( flmfile, w=20 ):
     # fit and subtract a line from noise
     p = np.poly1d( np.polyfit( d[:,0][m], d[:,1][m], 3 ) )
     std = np.std( d[:,1][m] - p(d[:,0][m]) )
-    return np.mean( d[:,1][m] ) / std
+    return np.abs(np.mean( d[:,1][m] ) / std)
 
 def getBoth( flmfile ):
     try:
@@ -65,6 +71,10 @@ def getBoth( flmfile ):
         snr = 0.0
     try:
         t,st = getSNID( flmfile )
+        if t == '':
+            t = 'NoMatch'
+        if st == '':
+            st = 'NoMatch'
     except:
         t,st = 'NoMatch','NoMatch'
     return t,st,snr
@@ -78,9 +88,13 @@ def insertIntoDB( t,st,snr,specID ):
     DB.commit()
 
 def do_it_all( inn ):
-    flmfile, specid = inn
-    t,st,snr = getBoth( flmfile )
-    insertIntoDB( t,st,snr,specid )
+    try:
+        flmfile, specid = inn
+        t,st,snr = getBoth( flmfile )
+        insertIntoDB( t,st,snr,specid )
+    except:
+        open('failed_snid.txt','a').write('%s, %s\n'%(flmfile,specid))
+        print 'failed on',flmfile
     
 
 def runAllFlipperSpec( skipstrs=[], rootdir='/media/raid0/Data/spectra/', maxnum=None ):
@@ -95,7 +109,8 @@ def runAllFlipperSpec( skipstrs=[], rootdir='/media/raid0/Data/spectra/', maxnum
     for i,s in enumerate(S):
         # make sure that this spectrum is in the DB
         fname = path.basename( s[0] )
-        c.execute( 'SELECT SpecID,Filename FROM spectra WHERE (Filename = "%s" AND SNID_Type IS NULL);'%fname )
+        #c.execute( 'SELECT SpecID,Filename FROM spectra WHERE (Filename = "%s" AND SNID_Type IS NULL);'%fname )
+        c.execute( 'SELECT SpecID,Filename FROM spectra WHERE (Filename = "%s");'%fname )
         res = c.fetchone()
         if res == None:
             #open('snid_missing_DB.txt','a').write('%s\n'%s[0])
