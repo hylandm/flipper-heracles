@@ -97,14 +97,17 @@ def do_it_all( inn ):
         print 'failed on',flmfile
     
 
-def runAllFlipperSpec( skipstrs=[], rootdir='/media/raid0/Data/spectra/', maxnum=None ):
+def runAllFlipperSpec( skipstrs=[], rootdir='/media/raid0/Data/spectra/', maxnum=None, files=None ):
     """
     Run SNID and calculate the SNR for all ASCII spectra in the rootdir and children.
      Any filename with any of the skipstrs in it will not be run.
     """
     c = DB.cursor()
     # first accumulate a list of all files to run in parallel
-    S = yield_all_spectra( rootdir )
+    if files == None:
+        S = yield_all_spectra( rootdir )
+    else:
+        S = files
     fs = []
     for i,s in enumerate(S):
         # make sure that this spectrum is in the DB
@@ -131,6 +134,10 @@ def runAllFlipperSpec( skipstrs=[], rootdir='/media/raid0/Data/spectra/', maxnum
     pool = multiprocessing.Pool( multiprocessing.cpu_count() )
     pool.map( do_it_all, fs )
 
-   
+  
 if __name__ == '__main__':
     runAllFlipperSpec()
+    
+    # run at the end, to catch files that failed due to DB overloading issues or something
+    #allfiles = [f.strip().split(',') for f in open('failed_snid1.txt','r').readlines()]
+    #runAllFlipperSpec( files = allfiles ) 
