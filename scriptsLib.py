@@ -13,7 +13,7 @@ import pyfits as pf
 from difflib import get_close_matches
 from cStringIO import StringIO
 from subprocess import Popen,PIPE
-
+from dateutil import parser
 
 def yield_all_spectra( location='/media/raid0/Data/spectra/', include_details_flm=False ):
     """
@@ -100,6 +100,7 @@ def get_info_image_fitsfile( fitsfile ):
            ['exptime','exposure'],
            ['exptime2','exptime'],
            ['date','date'],
+           ['dateobs','date-obs'],
            ['utc','time'],
            ['date_mjd','mjd-obs'],
            ['airmass','airmass'],
@@ -119,6 +120,8 @@ def get_info_image_fitsfile( fitsfile ):
             pass
         elif outk in ['exptime','exptime2','date_mjd','airmass']:
             val = float(val)
+        elif outk in ['date','dateobs']:
+            val = parser.parse( val ) #parse the datetime string in a reasonable way
         elif outk == 'ra_d':
             val = _parse_ra( val )
         elif outk == 'dec_d':

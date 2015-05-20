@@ -16,7 +16,7 @@ RA DOUBLE PRECISION NOT NULL,
 Decl DOUBLE PRECISION NOT NULL,
 Instrument VARCHAR(50),
 Telescope VARCHAR(45),
-UT_Date DATE NOT NULL,
+Date DATE NOT NULL,
 Exposure INT
 );
 """
@@ -33,15 +33,15 @@ def insert_image( image ):
     fpath,fname = os.path.split(image)
     # trim the fpath relative to the Data directory
     fpath = fpath.split('raid0/')[1]
-    # see if it's already in the DB
-    cmd = "SELECT * FROM images WHERE ((Filename = '%s') AND (Filepath = '%s'));" %(fname,fpath)
-    print cmd
-    c.execute(cmd)
-    res = c.fetchone()
-    if res != None:
-        # this image already in DB; just move on
-        print fpath,fname,'already in DB.'
-        return
+    ## see if it's already in the DB
+    #cmd = "SELECT * FROM images WHERE ((Filename = '%s') AND (Filepath = '%s'));" %(fname,fpath)
+    #print cmd
+    #c.execute(cmd)
+    #res = c.fetchone()
+    #if res != None:
+    #    # this image already in DB; just move on
+    #    print fpath,fname,'already in DB.'
+    #    return
     print 'adding',fpath,fname
     info = get_info_image_fitsfile(image)
     # ignore calibration images
@@ -65,14 +65,25 @@ def insert_image( image ):
         exp = info['exptime2']
     else:
         exp = 0.0
+    if exp < 10.0:
+        # don't include short observations / calibrations
+        return
+    # choose the obs date
+    if info['dateobs']:
+        d = info['dateobs']
+    elif info['date']:
+        d = info['date']
+    else:
+        raise Exception('No date found!')
+    date = '%d-%d-%d'%(d.year, d.month, d.day)
     # translate nones into nulls
     for k in info.keys():
         if not info[k]:
             info[k] = 'NULL'
-    cmd = "INSERT INTO images (Filename, Filepath, Filter, ObjName, RA, Decl, Instrument, Telescope, UT_Date, Exposure) \n"+\
+    cmd = "INSERT INTO images (Filename, Filepath, Filter, ObjName, RA, Decl, Instrument, Telescope, Date, Exposure) \n"+\
           "VALUES ('%s', '%s', '%s', '%s', %f, %f, '%s', '%s', '%s', %d);"
     cmd = cmd %(fname, fpath, filt, info['object'], info['ra_d'], info['dec_d'],
-                info['instrument'], info['telescope'], info['date'], exp)
+                info['instrument'], info['telescope'], date, exp)
     print cmd
     c.execute(cmd)
     DB.commit()
@@ -83,12 +94,12 @@ def insert_image( image ):
 for image in yield_all_images( location='/media/raid0/Data/kait/' ):
     try:
         insert_image( image )
-    except:
-        open('failed_files.txt','a').write('%s\n'%image)
+    except Exception as e:
+        open('failed_files.txt','a').write('%s ::: %s\n'%(image,e.args[0]))
 for image in yield_all_images( location='/media/raid0/Data/nickel/' ):
     try:
         insert_image( image )
     except:
-        open('failed_files.txt','a').write('%s\n'%image)
+        open('failed_files.txt','a').write('%s ::: %s\n'%(image,e.args[0]))
 
     
