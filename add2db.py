@@ -24,6 +24,17 @@ from scriptsLib import *
 
 DB = MySQLdb.connect(host=creds.host, user=creds.user, passwd=creds.passwd, db=creds.db, cursorclass=MySQLdb.cursors.DictCursor)
 
+def print_sql( sql, vals=None ):
+    """
+    Prints an approximation of the sql string with vals inserted. Approximates cursor.execute( sql, vals ).
+    Note that internal quotes on strings will not be correct and these commands probably cannot actually be
+    run on MySQL - for debuggin only!
+    """
+    if vals == None:
+        print sql
+    else:
+        s = sql %tuple( map(str, vals) )
+        print s
 
 def handle_object_phot( objname ):
     """
@@ -71,6 +82,7 @@ def handle_object( objname ):
         # assume all newly-inserted objects are not public
         vals.append( 0 )
         # now go ahead and put it in
+        print_sql( sqlinsert, vals )
         c.execute( sqlinsert, vals )
         DB.commit()
         # now grab the ObjID from this new entry
@@ -96,6 +108,7 @@ def handle_spectralrun( fitsfile, objname ):
         # append this object name onto the end of the objects observed and return RunID
         sqlupdate = "UPDATE spectralruns SET (Targets = %s) WHERE (RunID = %s);"
         newtargets = res['Targets'] + ' | ' + objname
+        print_sql( sqlupdate, [newtargets, res['RunID']] )
         c.execute( sqlupdate, [newtargets, res['RunID']] )
         DB.commit()
         return res['RunID']
@@ -104,6 +117,7 @@ def handle_spectralrun( fitsfile, objname ):
         sqlinsert = "INSERT INTO spectralruns (UT_Date, Targets, Reducer, Observer, Instrument, Telescope) "+\
                                       "VALUES (DATE(%s), %s, %s, %s, %s, %s);"
         vals = [datestr, objname, info['reducer'], info['observer'], info['instrument'], info['observatory']]
+        print_sql( sqlinsert, vals )
         c.execute( sqlinsert, vals )
         DB.commit()
         # now grab the RunID from this new entry
@@ -155,6 +169,7 @@ def handle_new_spectrum( flmfile, fitsfile, folder ):
         t,st = getSNID( flmfile )
         vals.extend( [t, st] )
         # actually do the insert
+        print_sql( sqlinsert, vals )
         c.execute( sqlinsert, vals )
         DB.commit()
         # now grab the SpecID from this new entry
@@ -200,8 +215,10 @@ def handle_new_lightcurve( photfile ):
     vals = [objid, fname, fpath, filters, telescopes, firstobs, lastobs, npoints, public]
     if photid != None:
         vals.append( photid )
+        print_sql( sqlupdate, vals )
         c.execute( sqlupdate, vals )
     else:
+        print_sql( sqlinsert, vals )
         c.execute( sqlinsert, vals )
     DB.commit()
     # now grab the PhotID from this new/updated entry
@@ -209,4 +226,12 @@ def handle_new_lightcurve( photfile ):
     res = c.fetchone()
     c.close()
     return res['PhotID']
-    
+
+def run_on_folder( folder ):
+    specs = yield_all_spectra( folder )
+    for flm,fit in specs:
+        print flm,':::',fit
+        folder = os.path.split(os.path.split( flm )[0])[1]
+        specid = handle_new_spectrum( flm, fit, folder )
+        print 'inserted with SpecID =',specid
+        break
