@@ -118,7 +118,7 @@ def get_info_image_fitsfile( fitsfile ):
             val = None
         if val == None:
             pass
-        elif outk in ['exptime','exptime2','date_mjd','airmass']:
+        elif outk in ['exptime','exptime2','date_mjd','airmass', 'utc']:
             val = float(val)
         elif outk in ['date','dateobs']:
             val = parser.parse( val ) #parse the datetime string in a reasonable way
@@ -127,7 +127,10 @@ def get_info_image_fitsfile( fitsfile ):
         elif outk == 'dec_d':
             val = _parse_dec( val )
         else:
-            val = val.strip()
+            try:
+                val = val.strip()
+            except:
+                pass
         outdict[outk] = val
 
     return outdict    
