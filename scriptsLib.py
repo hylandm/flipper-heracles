@@ -6,14 +6,17 @@
 #
 ###########################################################
 
+import re
 from glob import glob
 from os import walk, path
-import re
+import numpy as np
 import pyfits as pf
 from difflib import get_close_matches
 from cStringIO import StringIO
 from subprocess import Popen,PIPE
 from dateutil import parser
+from urllib2 import urlopen
+import julian_dates as jd
 
 def yield_all_spectra( location='/media/raid0/Data/spectra/', include_details_flm=False ):
     """
@@ -154,7 +157,8 @@ def get_info_spec_fitsfile( fitsfile ):
       observatory (string),
       instrument (string),
       observer (string),
-      reducer (string)}
+      reducer (string),
+      seeing (float)}
     """
     hdu = pf.open( fitsfile )
     head = hdu[0].header
@@ -172,7 +176,10 @@ def get_info_spec_fitsfile( fitsfile ):
            ['observatory','observat'],
            ['instrument','instrume'],
            ['observer','observer'],
-           ['reducer','reducer'] ]
+           ['reducer','reducer'],
+           ['seeing','seeing'],
+           ['position_ang', 'tub'],
+           ['parallac_ang', 'opt_pa'] ]
     
     outdict = {}
     for outk, fitsk in ks:
@@ -182,12 +189,14 @@ def get_info_spec_fitsfile( fitsfile ):
             val = None
         if val == None:
             pass
-        elif outk in ['exptime','date_mjd','airmass']:
+        elif outk in ['exptime','date_mjd','airmass', 'position_ang', 'parallac_ang', 'seeing']:
             val = float(val)
         elif outk == 'ra_d':
             val = _parse_ra( val )
         elif outk == 'dec_d':
             val = _parse_dec( val )
+        elif outk == ['date']:
+            val = parser.parse( val ) #parse the datetime string in a reasonable way
         else:
             val = val.strip()
         outdict[outk] = val
@@ -364,3 +373,184 @@ def _parse_sexagesimal(hmsdms):
     vals = [abs(i) if i is not None else 0.0 for i in parts]
     return dict(sign=sign, units=units, vals=vals, parts=parts)
 
+
+def getSNID( flmfile ):
+    """
+    Run SNID on an ASCII spectrum,
+     simply returning the best type as 
+     determined by fraction and slope.
+    """
+    try:
+        cmd = "snid plot=0 inter=0 {}".format(flmfile)
+        o,e = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE).communicate()
+        # if SNID found no matches at all, quit here
+        if re.search('Thank you for using SNID! Goodbye.',o) == None:
+            return 'NoMatch','NoMatch'
+
+        typestring,subtypestring = o.split('Best subtype(s)')
+        # find the best types first
+        lines = typestring.split('\n')
+        iii = lines.index(' [fraction]') +1
+        ftype = lines[iii].split()[2]
+        iii = lines.index(' [slope]') +1
+        if 'NOTE' in lines[iii]:
+            stype = ftype
+        else:
+            stype = lines[iii].split()[2]
+        t = set([ftype,stype])
+        t = ','.join(set([ftype,stype]))
+
+        # now find best subtypes:
+        lines = subtypestring.split('\n')[:10]
+        iii = lines.index(' [fraction]') +1
+        ftype = lines[iii].split()[3]
+        iii = lines.index(' [slope]') +1
+        if 'NOTE' in lines[iii]:
+            stype = ftype
+        else:
+            stype = lines[iii].split()[3]
+        st = set([ftype,stype])
+        st = ','.join(set([ftype,stype]))
+        if t == '':
+            t = 'NoMatch'
+        if st == '':
+            st = 'NoMatch'
+        return t, st
+    except:
+        return 'NoMatch','NoMatch'
+
+def getSNR( flmfile, w=20 ):
+    """
+    Calculates the S/N ratio at the central wavelength, in a 
+     bin +/-<w> angstroms wide.
+    Will remove a polynomial fit before calculating noise.
+    """
+    d = np.loadtxt( flmfile )
+    midwl = d[len(d)/2, 0]
+    m = (d[:,0] > midwl-w) & (d[:,0] < midwl+w)
+    # fit and subtract a line from noise
+    p = np.poly1d( np.polyfit( d[:,0][m], d[:,1][m], 3 ) )
+    std = np.std( d[:,1][m] - p(d[:,0][m]) )
+    return np.abs(np.mean( d[:,1][m] ) / std)
+
+def get_info_spec_flmfile( flmfile ):
+    """
+    Calculates a few things about the input flmfile and returns them as a dictionary.
+    """
+    outd = {}
+    outd['SNR'] = getSNR( flmfile )
+    d = np.loadtxt( flmfile )
+    outd['MinWL'] = d[0][0]
+    outd['MaxWL'] = d[0][-1]
+    # take average resolutions of 10 pixels on either end for red/blue resolutions
+    outd['BlueRes'] = np.mean(d[0][1:11] - d[0][0:10])
+    outd['BlueRes'] = np.mean(d[0][-10:] - d[0][-11:-1])
+    return outd
+
+def get_SN_info_simbad( name ):
+    """
+    Queries simbad for SN coords, redshift, and host galaxy.
+    If redshift is not given for SN, attempts to resolve link to 
+     host galaxy and report its redshift.
+    Returns ( (ra,dec), redshift, host_name, redshift_citation ), with
+     values of None inserted whenever it cannot resolve the value.
+    """
+    simbad_uri = "http://simbad.u-strasbg.fr/simbad/sim-id?output.format=ASCII&Ident=%s"
+    result = urlopen( simbad_uri % name.replace(' ','%20') ).read()
+    outd = {}
+
+    # try to get the coordinates
+    regex_coords = "Coordinates\(FK5.+\): .+"
+    res_coords = re.search( regex_coords, result )
+    try:
+        cs = res_coords.group().split(':')[1].strip()
+        outdict['RA'] = _parse_ra( cs[:12].strip() )
+        outdict['Decl'] = _parse_dec( cs[12:].strip() )
+    except AttributeError:
+        outdict['RA'] = None
+        outdict['Decl'] = None
+
+    # try to get the type
+    regex_type = "Spectral type: [^s]+"
+    res_type = re.search( regex_type, result )
+    try:
+        typrow = res_type.group().split(':')[1].split()
+        typ = typrow[0].strip()
+        typ = typ.replace('SN','')
+        outd['Type'] = typ
+        typref = typrow[-1].strip()
+        if '~' in typref:
+            outd['TypeReference'] = None
+        else:
+            outd['TypeReference'] = typref
+    except AttributeError:
+        outd['Type'] = None
+        outd['TypeReference'] = None
+
+    # try to get the redshift
+    regex_redshift = "Redshift:\s+\d+\.\d+.+"
+    res_red = re.search( regex_redshift, result )
+    try:
+        outd['Redshift_SN'] = float(res_red.group().strip('Redshift: ').split(' ')[0])
+        outd['Redshift_SN_citation'] = res_red.group().split(' ')[-1]
+    except AttributeError:
+        outd['Redshift_SN'] = None
+        outd['Redshift_SN_citation'] = None
+
+    # try to get the host info
+    regex_host = "apparent\s+host\s+galaxy\s+.+?\{(.*?)\}"
+    res_host = re.search( regex_host, result )
+    try:
+        host = res_host.group().split('{')[1].split('}')[0]
+        outd['HostName'] = host
+    except AttributeError:
+        host = None
+        outd['HostName'] = host
+    if host != None:
+        result = urlopen( simbad_uri % host.replace(' ','%20') ).read()
+        # get the type of the host galaxy
+        regex_type = "Morphological type:\s+[^\s]+\s"
+        res_type = re.search( regex_type, result )
+        try:
+            outd['HostType'] = res_type.group().split(':')[1].strip()
+        except AttributeError:
+            outd['HostType'] = None
+        # get the redshift of the host galaxy
+        regex_redshift = "Redshift:\s+\d+\.\d+.+"
+        res_red = re.search( regex_redshift, result )
+        try:
+            outd['Redshift_Gal'] = float(res_red.group().strip('Redshift: ').split(' ')[0])
+            outd['Redshift_Gal_citation'] = res_red.group().split(' ')[-1]
+        except AttributeError:
+            outd['Redshift_Gal'] = None
+            outd['Redshift_Gal_citation'] = None
+    else:
+        outd['Redshift_Gal'] = None
+        outd['Redshift_Gal_citation'] = None
+
+    # pull out the notes field
+    try:
+        outd['Notes'] = result.split('Notes')[1]
+    except:
+        outd['Notes'] = None
+    return outd
+
+def get_SN_info_rochester():
+    """
+    would be awesome. should implement this.
+    """
+    pass
+
+def parse_photfile( f ):
+    lines = [l for l in open(f,'r').readlines() if l[0]!='#']
+    obsdates = [float(l.split()[0]) for l in lines]
+    firstobs = min(obsdates)
+    lastobs = max(obsdates)
+    firstobs = jd.caldate( firstobs ) # tuple of (y,m,d,h,m,s)
+    lastobs = jd.caldate( lastobs )
+    filters = set([l.split()[4] for l in lines])
+    filters = ','.join(filters)
+    telescopes = set([l.split()[5] for l in lines])
+    telescopes = ','.join(telescopes)
+    npoints = len(lines)
+    return (firstobs, lastobs, filters, telescopes, npoints)
