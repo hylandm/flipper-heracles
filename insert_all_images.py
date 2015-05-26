@@ -76,6 +76,9 @@ def insert_image( image ):
     else:
         raise Exception('No date found!')
     date = '%d-%d-%d'%(d.year, d.month, d.day)
+    # sometimes the nickel images don't include telescope keyword
+    if (not info['telescope']) and ('nickel' in info['instrument'].lower()):
+        info['telescope'] = 'NICKEL'
     # translate nones into nulls
     for k in info.keys():
         if not info[k]:
@@ -91,15 +94,21 @@ def insert_image( image ):
     return
 
 
-for image in yield_all_images( location='/media/raid0/Data/kait/' ):
+#for image in yield_all_images( location='/media/raid0/Data/kait/' ):
+#    try:
+#        insert_image( image )
+#    except Exception as e:
+#        open('failed_files.txt','a').write('%s ::: %s\n'%(image,e.args[0]))
+#for image in yield_all_images( location='/media/raid0/Data/nickel/' ):
+#    try:
+#        insert_image( image )
+#    except:
+#        open('failed_files.txt','a').write('%s ::: %s\n'%(image,e.args[0]))
+images = open('failed_files.bak','r').readlines()
+for line in images:
     try:
+        image = line.split(':::')[0].strip()
         insert_image( image )
     except Exception as e:
         open('failed_files.txt','a').write('%s ::: %s\n'%(image,e.args[0]))
-for image in yield_all_images( location='/media/raid0/Data/nickel/' ):
-    try:
-        insert_image( image )
-    except:
-        open('failed_files.txt','a').write('%s ::: %s\n'%(image,e.args[0]))
 
-    
