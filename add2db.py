@@ -86,7 +86,7 @@ def handle_spectralrun( fitsfile, objname ):
     if res:
         # associated spectral run already exists.
         # append this object name onto the end of the objects observed and return RunID
-        sqlupdate = "UPDATE spectralruns SET (Targets = %s) WHERE (RunID = %s);"
+        sqlupdate = "UPDATE spectralruns SET Targets = %s WHERE (RunID = %s);"
         newtargets = res['Targets'] + ' | ' + objname
         print_sql( sqlupdate, [newtargets, res['RunID']] )
         c.execute( sqlupdate, [newtargets, res['RunID']] )
@@ -113,8 +113,10 @@ def handle_new_spectrum( flmfile, fitsfile, folder ):
     """
     # parse the filename
     is_sn = '[sS][nN]\d{4}.+'
-    if re.search( folder, is_sn ):
+    if re.search( is_sn, folder ):
         objname = folder.replace('sn','SN ')
+        if re.search( '\d{4}[a-zA-Z]$', objname ):
+            objname = objname.upper()
     else:
         objname = folder
     # first see if this file is already in the database
@@ -131,15 +133,16 @@ def handle_new_spectrum( flmfile, fitsfile, folder ):
     else:
         # need to parse the files to insert this spectrum
         sqlinsert = "INSERT INTO spectra (ObjID, RunID, Filename, Filepath, UT_Date, Airmass, Exposure, Position_Angle, Parallactic_Angle, SNR, Min, Max, Blue_Resolution, Red_Resolution, SNID_Type, SNID_Subtype) "+\
-                                 "VALUES (%s, %s, %s, %s, DATE(%s), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s );"
+                                 "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s );"
         # handle the object and spectralrun
         objid = handle_object( objname )
-        runid = handle_spectralrun( fitsfile, folder )
+        runid = handle_spectralrun( fitsfile, objname )
         vals = [objid, runid, fname, fpath]
         # pull info from fitsfile 
         info = get_info_spec_fitsfile( fitsfile )
         datestr = '%d-%d-%d' %(info['date'].year, info['date'].month, info['date'].day)
-        vals.append( datestr )
+        datefloat = parse_datestring( os.path.basename( flmfile ) )
+        vals.append( datefloat )
         vals.extend( [info['airmass'], info['exptime'] ])
         vals.extend( [info['position_ang'], info['parallac_ang']] )
         # pull info from flmfile
@@ -179,8 +182,10 @@ def handle_new_lightcurve( photfile ):
     # find the object name
     objname = fname.split('.')[0]
     is_sn = '[sS][nN]\d{4}.+'
-    if re.search( objname, is_sn ):
+    if re.search( is_sn, objname ):
         objname = objname.replace('sn','SN ')
+        if re.search( '\d{4}[a-zA-Z]$', objname ):
+            objname = objname.upper()
     # get the object id
     objid = handle_object( objname )
     # pull info from photfile

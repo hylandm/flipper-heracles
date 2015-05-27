@@ -150,7 +150,7 @@ def get_info_spec_fitsfile( fitsfile ):
       ra_d (degrees, float),
       dec_d (degrees, float),
       exptime (seconds, float),
-      date (string),
+      date (datetime object)
       utc (string),
       date_mjd (MJD, float),
       airmass (float),
@@ -195,7 +195,7 @@ def get_info_spec_fitsfile( fitsfile ):
             val = _parse_ra( val )
         elif outk == 'dec_d':
             val = _parse_dec( val )
-        elif outk == ['date']:
+        elif outk == 'date':
             val = parser.parse( val ) #parse the datetime string in a reasonable way
         else:
             val = val.strip()
@@ -215,6 +215,12 @@ def parse_filename( f ):
     obj = f.split(datestring)[0].strip('-')
     return (y,m,d), obj
 
+def parse_datestring( f ):
+    """
+    Parses a *.flm file for observation date as float.
+    """
+    datestring = re.search('\d{8}(\.\d+)?', f).group()
+    return float(datestring)
 
 ##########################################
 # helper functions
@@ -440,11 +446,11 @@ def get_info_spec_flmfile( flmfile ):
     outd = {}
     outd['SNR'] = getSNR( flmfile )
     d = np.loadtxt( flmfile )
-    outd['MinWL'] = d[0][0]
-    outd['MaxWL'] = d[0][-1]
+    outd['MinWL'] = d[0,0]
+    outd['MaxWL'] = d[-1,0]
     # take average resolutions of 10 pixels on either end for red/blue resolutions
-    outd['BlueRes'] = np.mean(d[0][1:11] - d[0][0:10])
-    outd['BlueRes'] = np.mean(d[0][-10:] - d[0][-11:-1])
+    outd['BlueRes'] = np.mean(d[:,0][1:11] - d[:,0][0:10])
+    outd['RedRes'] = np.mean(d[:,0][-10:] - d[:,0][-11:-1])
     return outd
 
 def get_host_info_simbad( name ):
