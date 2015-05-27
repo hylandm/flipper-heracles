@@ -126,9 +126,9 @@ def get_info_image_fitsfile( fitsfile ):
         elif outk in ['date','dateobs']:
             val = parser.parse( val ) #parse the datetime string in a reasonable way
         elif outk == 'ra_d':
-            val = _parse_ra( val )
+            val = parse_ra( val )
         elif outk == 'dec_d':
-            val = _parse_dec( val )
+            val = parse_dec( val )
         else:
             try:
                 val = val.strip()
@@ -192,9 +192,9 @@ def get_info_spec_fitsfile( fitsfile ):
         elif outk in ['exptime','date_mjd','airmass', 'position_ang', 'parallac_ang', 'seeing']:
             val = float(val)
         elif outk == 'ra_d':
-            val = _parse_ra( val )
+            val = parse_ra( val )
         elif outk == 'dec_d':
-            val = _parse_dec( val )
+            val = parse_dec( val )
         elif outk == 'date':
             val = parser.parse( val ) #parse the datetime string in a reasonable way
         else:
@@ -222,11 +222,7 @@ def parse_datestring( f ):
     datestring = re.search('\d{8}(\.\d+)?', f).group()
     return float(datestring)
 
-##########################################
-# helper functions
-##########################################
-
-def _parse_ra( inn ):
+def parse_ra( inn ):
     '''
     Parse input RA string, either decimal degrees or sexagesimal HH:MM:SS.SS (or similar variants).
     Returns decimal degrees.
@@ -237,11 +233,11 @@ def _parse_ra( inn ):
         return ra
     except:
         # try to parse with phmsdms:
-        res = _parse_sexagesimal(inn)
+        res = parse_sexagesimal(inn)
         ra = 15.*( res['vals'][0] + res['vals'][1]/60. + res['vals'][2]/3600. )
         return ra
 
-def _parse_dec( inn ):
+def parse_dec( inn ):
     '''
     Parse input Dec string, either decimal degrees or sexagesimal DD:MM:SS.SS (or similar variants).
     Returns decimal degrees.
@@ -252,11 +248,11 @@ def _parse_dec( inn ):
         return dec
     except:
         # try to parse with phmsdms:
-        res = _parse_sexagesimal(inn)
+        res = parse_sexagesimal(inn)
         dec = res['sign']*( res['vals'][0] + res['vals'][1]/60. + res['vals'][2]/3600. )
         return dec
 
-def _parse_sexagesimal(hmsdms):
+def parse_sexagesimal(hmsdms):
     """
     +++ Pulled from python package 'angles' +++
     Parse a string containing a sexagesimal number.
@@ -495,8 +491,8 @@ def get_SN_info_simbad( name ):
     res_coords = re.search( regex_coords, result )
     try:
         cs = res_coords.group().split(':')[1].strip()
-        outd['RA'] = _parse_ra( cs[:12].strip() )
-        outd['Decl'] = _parse_dec( cs[12:].strip() )
+        outd['RA'] = parse_ra( cs[:12].strip() )
+        outd['Decl'] = parse_dec( cs[12:].strip() )
     except AttributeError:
         pass
     
@@ -559,6 +555,13 @@ def remove_tags( row ):
     return ''.join(outstr)
     
 def download_rochester_info():
+    """
+    Parse the huge rochester SN page and produce a dictionary including
+     all the rows we can understand.
+    This page has quite a few entries with slightly odd entries, and this script
+     is my best effort to parse most of them, but there are definitely some that
+     break this and are not included.  Oh well.
+    """
     uri = 'http://www.rochesterastronomy.org/snimages/snnameall.html'
     result = urlopen( uri ).readlines()
     global ROCHESTER_DICT
@@ -571,6 +574,7 @@ def download_rochester_info():
     # now start running through it all
     for line in result[i:]:
         if line[:6] == '</pre>':
+            # we're done!
             break
         try:
             # otherwise parse the line
@@ -587,15 +591,15 @@ def download_rochester_info():
             if re.search( regex_sn, name ):
                 # prepends SN names with sn
                 name = 'sn'+name
-            # have everything be lowercase 
+            # have everything be lowercase in the names
             name = name.lower()
             # pull out and parse the coordinates
             regex_coords = '\d{2}\s\d{2}\s\d{2}(.\d+)?\s+[+-]\d{2}\s\d{2}\s\d{2}(.\d+)?'
             match = re.search( regex_coords, row )
             icoords = match.start()
             coords = match.group()
-            ra = _parse_ra( coords[:12] )
-            dec = _parse_dec( coords[13:] )
+            ra = parse_ra( coords[:12] )
+            dec = parse_dec( coords[13:] )
             sn_type = row[icoords+55:].split()[0]
             # parse the raw line to find the reference
             regex_link = '"http://.*" '
@@ -613,7 +617,9 @@ def download_rochester_info():
 
 def get_SN_info_rochester( name ):
     """
-    Queries rochester SN page for info on objects.
+    Queries dictionary built from rochester SN page for info on objects.
+    If ROCHESTER_DICT has not yet been built this session, will query the page and
+     parse it (takes ~10s).
     """
     global ROCHESTER_DICT
     # if we've downloaded it already this session, don't do it again!
@@ -622,19 +628,17 @@ def get_SN_info_rochester( name ):
     except NameError:
         # need to build the ROCHESTER DICT
         download_rochester_info()
-    # see if we have this object in the dict, and test for all lowercase too
+    # see if we have this object in the dict - all names are lowercase in the ROCHESTER_DICT
     outd = {}
     try:
-        host, ra, dec, sn_type, ref_link = ROCHESTER_DICT[name]
+        host, ra, dec, sn_type, ref_link = ROCHESTER_DICT[name.lower()]
     except KeyError:
-        try:
-            host, ra, dec, sn_type, ref_link = ROCHESTER_DICT[name.lower()]
-        except KeyError:
-            return {}
+        return {}
     outd['HostName'] = host
-    # pull any simbad info you can about the host
-    hostd = get_host_info_simbad( host )
-    outd.update( hostd )
+    # pull any simbad info you can about the host if it has a name
+    if host != 'Anon.':
+        hostd = get_host_info_simbad( host )
+        outd.update( hostd )
     outd['RA'] = ra
     outd['Decl'] = dec
     outd['Type'] = sn_type
@@ -642,6 +646,11 @@ def get_SN_info_rochester( name ):
     return outd
 
 def parse_photfile( f ):
+    """
+    Parse an ascii lightcurve file in the flipper format for entry in
+     the database.
+    Returns (firstobs, lastobs, filters, telescopes, npoints)
+    """
     lines = [l for l in open(f,'r').readlines() if l[0]!='#']
     obsdates = [float(l.split()[0]) for l in lines]
     firstobs = min(obsdates)
