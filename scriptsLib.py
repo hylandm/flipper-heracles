@@ -492,7 +492,12 @@ def get_SN_info_simbad( name ):
         outd['RA'] = _parse_ra( cs[:12].strip() )
         outd['Decl'] = _parse_dec( cs[12:].strip() )
     except AttributeError:
+<<<<<<< HEAD
         pass
+=======
+        outd['RA'] = None
+        outd['Decl'] = None
+>>>>>>> da034cbfec6319204f56dc81bcaa137c9b00181b
 
     # try to get the type
     regex_type = "Spectral type: .*"

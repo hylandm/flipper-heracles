@@ -49,9 +49,9 @@ def handle_object( objname ):
         # object already exists!
         return res['ObjID']
     else:
-        # need to parse the input files to define the object
+        # try to parse the web to define the object
         sqlinsert = "INSERT INTO objects (ObjName, RA, Decl, Type, TypeReference, Redshift_SN, HostName, HostType, Redshift_Gal, Notes, Public) "+\
-                                 "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"
+                                 "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"
         vals = [objname]
         # parse rochester to get info
         info = get_SN_info_rochester( objname )
@@ -182,7 +182,7 @@ def handle_new_lightcurve( photfile ):
     if re.search( objname, is_sn ):
         objname = objname.replace('sn','SN ')
     # get the object id
-    objid = handle_object_phot( objname )
+    objid = handle_object( objname )
     # pull info from photfile
     firstobs, lastobs, filters, telescopes, npoints = parse_photfile( f )
     firstobs = '%d-%d-%d'%(firstobs[0],firstobs[1],firstobs[2])
