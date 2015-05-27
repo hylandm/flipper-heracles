@@ -585,8 +585,10 @@ def download_rochester_info():
             name = row[:idate-14].strip()
             regex_sn = '\d{4}[A-Za-z]+'
             if re.search( regex_sn, name ):
-                # convert SN names into our format
-                name = 'SN '+name
+                # prepends SN names with sn
+                name = 'sn'+name
+            # have everything be lowercase 
+            name = name.lower()
             # pull out and parse the coordinates
             regex_coords = '\d{2}\s\d{2}\s\d{2}(.\d+)?\s+[+-]\d{2}\s\d{2}\s\d{2}(.\d+)?'
             match = re.search( regex_coords, row )
@@ -598,7 +600,7 @@ def download_rochester_info():
             # parse the raw line to find the reference
             regex_link = '"http://.*" '
             try:
-                ref_link = re.search( regex_link, line ).group().strip()
+                ref_link = re.search( regex_link, line ).group().strip().strip('"')
             except AttributeError:
                 ref_link = None
             # now put everything into the rochester dictionary
@@ -620,20 +622,23 @@ def get_SN_info_rochester( name ):
     except NameError:
         # need to build the ROCHESTER DICT
         download_rochester_info()
-    # see if we have this object in the dict
+    # see if we have this object in the dict, and test for all lowercase too
     outd = {}
     try:
         host, ra, dec, sn_type, ref_link = ROCHESTER_DICT[name]
-        outd['HostName'] = host
-        # pull any simbad info you can about the host
-        hostd = get_host_info_simbad( host )
-        outd.update( hostd )
-        outd['RA'] = ra
-        outd['Decl'] = dec
-        outd['Type'] = sn_type
-        outd['TypeReference'] = ref_link
     except KeyError:
-        pass
+        try:
+            host, ra, dec, sn_type, ref_link = ROCHESTER_DICT[name.lower()]
+        except KeyError:
+            return {}
+    outd['HostName'] = host
+    # pull any simbad info you can about the host
+    hostd = get_host_info_simbad( host )
+    outd.update( hostd )
+    outd['RA'] = ra
+    outd['Decl'] = dec
+    outd['Type'] = sn_type
+    outd['TypeReference'] = ref_link
     return outd
 
 def parse_photfile( f ):

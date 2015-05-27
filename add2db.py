@@ -1,4 +1,4 @@
-"""
+f"""
 Adding new files/objects/spectralruns to the database!
 
 
@@ -54,7 +54,7 @@ def handle_object( objname ):
                                  "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"
         vals = [objname]
         # parse rochester to get info
-        info = get_SN_info_rochester( objname )
+        info = get_SN_info_rochester( objname.lower().replace(' ','') )
         # parse simbad to attempt to find more info
         info.update( get_SN_info_simbad( objname ) )
         for k in ['RA','Decl','Type','TypeReference','Redshift_SN','HostName','HostType','Redshift_Gal','Notes']:
@@ -112,12 +112,13 @@ def handle_new_spectrum( flmfile, fitsfile, folder ):
      folder hosting these data (associated with object name).
     """
     # parse the filename
-    is_sn = '[sS][nN]\d{4}.+'
-    if re.search( is_sn, folder ):
+    if re.search( '[sS][nN]\d{4}.+', folder ):
+        # massage all SN formats into the normal SN format in the DB
         objname = folder.replace('sn','SN ')
         if re.search( '\d{4}[a-zA-Z]$', objname ):
             objname = objname.upper()
     else:
+        # if it's not a normal SN name, just pass it through
         objname = folder
     # first see if this file is already in the database
     sqlfind = 'SELECT SpecID FROM spectra WHERE (Filename = %s) and (Filepath = %s);'
@@ -181,11 +182,15 @@ def handle_new_lightcurve( photfile ):
         public = 0
     # find the object name
     objname = fname.split('.')[0]
-    is_sn = '[sS][nN]\d{4}.+'
-    if re.search( is_sn, objname ):
+    # parse the filename
+    if re.search( '[sS][nN]\d{4}.+', folder ):
+        # massage all SN formats into the normal SN format in the DB
         objname = objname.replace('sn','SN ')
         if re.search( '\d{4}[a-zA-Z]$', objname ):
             objname = objname.upper()
+    else:
+        # if it's not a normal SN name, just pass it through
+        objname = folder
     # get the object id
     objid = handle_object( objname )
     # pull info from photfile
