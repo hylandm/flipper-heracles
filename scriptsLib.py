@@ -464,11 +464,11 @@ def get_SN_info_simbad( name ):
     res_coords = re.search( regex_coords, result )
     try:
         cs = res_coords.group().split(':')[1].strip()
-        outdict['RA'] = _parse_ra( cs[:12].strip() )
-        outdict['Decl'] = _parse_dec( cs[12:].strip() )
+        outd['RA'] = _parse_ra( cs[:12].strip() )
+        outd['Decl'] = _parse_dec( cs[12:].strip() )
     except AttributeError:
-        outdict['RA'] = None
-        outdict['Decl'] = None
+        outd['RA'] = None
+        outd['Decl'] = None
 
     # try to get the type
     regex_type = "Spectral type: [^s]+"
