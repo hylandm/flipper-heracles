@@ -53,12 +53,12 @@ def handle_object( objname ):
         sqlinsert = "INSERT INTO objects (ObjName, RA, Decl, Type, TypeReference, Redshift_SN, HostName, HostType, Redshift_Gal, Notes, Public) "+\
                                  "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"
         vals = [objname]
+        # parse rochester to get info
+        info = get_SN_info_rochester( objname )
         # parse simbad to attempt to find more info
-        simbad_info = get_SN_info_simbad( objname )
-        vals.extend( [simbad_info.get('ra'), simbad_info.get('dec')] )
-        vals.extend( [simbad_info.get('Type'), simbad_info.get('TypeReference'), simbad_info.get('Redshift_SN')] )
-        vals.extend( [simbad_info.get('HostName'), simbad_info.get('HostType'), simbad_info.get('Redshift_Gal')] )
-        vals.append( simbad_info.get('Notes') )
+        info.update( get_SN_info_simbad( objname ) )
+        for k in ['RA','Decl','Type','TypeReference','Redshift_SN','HostName','HostType','Redshift_Gal','Notes']:
+            vals.append( info.get(k) )
         # assume all newly-inserted objects are not public
         vals.append( 0 )
         # now go ahead and put it in
