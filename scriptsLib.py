@@ -607,7 +607,7 @@ def download_rochester_info():
             ROCHESTER_DICT[name] = [host, ra, dec, sn_type, ref_link]
         except:
             # just continue on errors
-            print remove_tags(line)
+            #print remove_tags(line)
             pass
     return
 
