@@ -447,13 +447,38 @@ def get_info_spec_flmfile( flmfile ):
     outd['BlueRes'] = np.mean(d[0][-10:] - d[0][-11:-1])
     return outd
 
+def get_host_info_simbad( name ):
+    """
+    Queries simbad for basic info on a host galaxy.
+    Returns a dictionary.
+    """
+    simbad_uri = "http://simbad.u-strasbg.fr/simbad/sim-id?output.format=ASCII&Ident=%s"
+    result = urlopen( simbad_uri % name.replace(' ','%20') ).read()
+    
+    outd = {}
+    # get the type of the host galaxy
+    regex_type = "Morphological type:\s+[^\s]+\s"
+    res_type = re.search( regex_type, result )
+    try:
+        outd['HostType'] = res_type.group().split(':')[1].strip()
+    except AttributeError:
+        pass
+    # get the redshift of the host galaxy
+    regex_redshift = "Redshift:\s+\d+\.\d+.+"
+    res_red = re.search( regex_redshift, result )
+    try:
+        outd['Redshift_Gal'] = float(res_red.group().strip('Redshift: ').split(' ')[0])
+        outd['Redshift_Gal_citation'] = res_red.group().split(' ')[-1]
+    except AttributeError:
+        pass
+    return outd
+        
 def get_SN_info_simbad( name ):
     """
     Queries simbad for SN coords, redshift, and host galaxy.
     If redshift is not given for SN, attempts to resolve link to 
      host galaxy and report its redshift.
-    Returns ( (ra,dec), redshift, host_name, redshift_citation ), with
-     values of None inserted whenever it cannot resolve the value.
+    Returns a dictionary.
     """
     simbad_uri = "http://simbad.u-strasbg.fr/simbad/sim-id?output.format=ASCII&Ident=%s"
     result = urlopen( simbad_uri % name.replace(' ','%20') ).read()
@@ -464,28 +489,24 @@ def get_SN_info_simbad( name ):
     res_coords = re.search( regex_coords, result )
     try:
         cs = res_coords.group().split(':')[1].strip()
-        outdict['RA'] = _parse_ra( cs[:12].strip() )
-        outdict['Decl'] = _parse_dec( cs[12:].strip() )
+        outd['RA'] = _parse_ra( cs[:12].strip() )
+        outd['Decl'] = _parse_dec( cs[12:].strip() )
     except AttributeError:
-        outdict['RA'] = None
-        outdict['Decl'] = None
+        pass
 
     # try to get the type
-    regex_type = "Spectral type: [^s]+"
+    regex_type = "Spectral type: .*"
     res_type = re.search( regex_type, result )
     try:
         typrow = res_type.group().split(':')[1].split()
-        typ = typrow[0].strip()
+        typ = typrow[0]
         typ = typ.replace('SN','')
         outd['Type'] = typ
-        typref = typrow[-1].strip()
-        if '~' in typref:
-            outd['TypeReference'] = None
-        else:
+        typref = typrow[-1]
+        if typref != '~':
             outd['TypeReference'] = typref
     except AttributeError:
-        outd['Type'] = None
-        outd['TypeReference'] = None
+        pass
 
     # try to get the redshift
     regex_redshift = "Redshift:\s+\d+\.\d+.+"
@@ -494,8 +515,7 @@ def get_SN_info_simbad( name ):
         outd['Redshift_SN'] = float(res_red.group().strip('Redshift: ').split(' ')[0])
         outd['Redshift_SN_citation'] = res_red.group().split(' ')[-1]
     except AttributeError:
-        outd['Redshift_SN'] = None
-        outd['Redshift_SN_citation'] = None
+        pass
 
     # try to get the host info
     regex_host = "apparent\s+host\s+galaxy\s+.+?\{(.*?)\}"
@@ -505,41 +525,110 @@ def get_SN_info_simbad( name ):
         outd['HostName'] = host
     except AttributeError:
         host = None
-        outd['HostName'] = host
+        pass
     if host != None:
-        result = urlopen( simbad_uri % host.replace(' ','%20') ).read()
-        # get the type of the host galaxy
-        regex_type = "Morphological type:\s+[^\s]+\s"
-        res_type = re.search( regex_type, result )
-        try:
-            outd['HostType'] = res_type.group().split(':')[1].strip()
-        except AttributeError:
-            outd['HostType'] = None
-        # get the redshift of the host galaxy
-        regex_redshift = "Redshift:\s+\d+\.\d+.+"
-        res_red = re.search( regex_redshift, result )
-        try:
-            outd['Redshift_Gal'] = float(res_red.group().strip('Redshift: ').split(' ')[0])
-            outd['Redshift_Gal_citation'] = res_red.group().split(' ')[-1]
-        except AttributeError:
-            outd['Redshift_Gal'] = None
-            outd['Redshift_Gal_citation'] = None
-    else:
-        outd['Redshift_Gal'] = None
-        outd['Redshift_Gal_citation'] = None
+        hostd = get_host_info_simbad( host )
+        outd.update( hostd )
 
     # pull out the notes field
     try:
         outd['Notes'] = result.split('Notes')[1]
     except:
-        outd['Notes'] = None
+        pass
     return outd
 
-def get_SN_info_rochester():
+def remove_tags( row ):
+    '''returns row with HTML tags removed, for easy parsing'''
+    # strip tags
+    intag = False
+    outstr = []
+    for char in row:
+        if char == '<':
+            intag = True
+        elif char == '>':
+            intag = False
+        else:
+            if not intag:
+                outstr.append(char)
+    return ''.join(outstr)
+    
+def download_rochester_info():
+    uri = 'http://www.rochesterastronomy.org/snimages/snnameall.html'
+    result = urlopen( uri ).readlines()
+    global ROCHESTER_DICT
+    ROCHESTER_DICT = {}
+    # find start of datatable
+    for i,row in enumerate(result):
+        if row[:10] == 'SN        ':
+            i +=1
+            break
+    # now start running through it all
+    for line in result[i:]:
+        if line[:6] == '</pre>':
+            break
+        try:
+            # otherwise parse the line
+            row = remove_tags( line )
+            # use the position of the discovery date to split the line
+            regex_date = '\d{4}\s\d{2}\s\d{2}(\.\d+)?'
+            match = re.search( regex_date, row )
+            idate = match.start()
+            date = match.group()
+            # host name is always 13 characters long
+            host = row[idate-14 : idate].strip()
+            name = row[:idate-14].strip()
+            regex_sn = '\d{4}[A-Za-z]+'
+            if re.search( regex_sn, name ):
+                # convert SN names into our format
+                name = 'SN '+name
+            # pull out and parse the coordinates
+            regex_coords = '\d{2}\s\d{2}\s\d{2}(.\d+)?\s+[+-]\d{2}\s\d{2}\s\d{2}(.\d+)?'
+            match = re.search( regex_coords, row )
+            icoords = match.start()
+            coords = match.group()
+            ra = _parse_ra( coords[:12] )
+            dec = _parse_dec( coords[13:] )
+            sn_type = row[icoords+55:].split()[0]
+            # parse the raw line to find the reference
+            regex_link = '"http://.*" '
+            try:
+                ref_link = re.search( regex_link, line ).group().strip()
+            except AttributeError:
+                ref_link = None
+            # now put everything into the rochester dictionary
+            ROCHESTER_DICT[name] = [host, ra, dec, sn_type, ref_link]
+        except:
+            # just continue on errors
+            print remove_tags(line)
+            pass
+    return
+
+def get_SN_info_rochester( name ):
     """
-    would be awesome. should implement this.
+    Queries rochester SN page for info on objects.
     """
-    pass
+    global ROCHESTER_DICT
+    # if we've downloaded it already this session, don't do it again!
+    try:
+        _ = type(ROCHESTER_DICT)
+    except NameError:
+        # need to build the ROCHESTER DICT
+        download_rochester_info()
+    # see if we have this object in the dict
+    outd = {}
+    try:
+        host, ra, dec, sn_type, ref_link = ROCHESTER_DICT[name]
+        outd['HostName'] = host
+        # pull any simbad info you can about the host
+        hostd = get_host_info_simbad( host )
+        outd.update( hostd )
+        outd['RA'] = ra
+        outd['Decl'] = dec
+        outd['Type'] = sn_type
+        outd['TypeReference'] = ref_link
+    except KeyError:
+        pass
+    return outd
 
 def parse_photfile( f ):
     lines = [l for l in open(f,'r').readlines() if l[0]!='#']

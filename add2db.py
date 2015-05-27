@@ -36,25 +36,6 @@ def print_sql( sql, vals=None ):
         s = sql %tuple( map(str, vals) )
         print s
 
-def handle_object_phot( objname ):
-    """
-    does the best it can to add object info based only upon a name.
-    """
-    is_sn = '[sS][nN]\d{4}.+'
-    if re.search( folder, is_sn ):
-        objname = folder.replace('sn','SN ')
-    else:
-        objname = folder
-    # see if object already exists
-    sqlfind = 'SELECT ObjID FROM objects WHERE ObjName = %s;'
-    c = DB.cursor()
-    c.execute( sqlfind, [objname] )
-    res = c.fetchone()
-    if res:
-        # object already exists!
-        return res['ObjID']
-    else:
-    
 def handle_object( objname ):
     """
     does the best it can to add object info based only upon a name. objname should be as you want it to be in the SNDB.
@@ -69,16 +50,15 @@ def handle_object( objname ):
         return res['ObjID']
     else:
         # need to parse the input files to define the object
-        info = get_info_spec_fitsfile( fitsfile )
         sqlinsert = "INSERT INTO objects (ObjName, RA, Decl, Type, TypeReference, Redshift_SN, HostName, HostType, Redshift_Gal, Notes, Public) "+\
                                  "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"
         vals = [objname]
+        # parse rochester to get info
+        info = get_SN_info_rochester( objname )
         # parse simbad to attempt to find more info
-        simbad_info = get_SN_info_simbad( objname )
-        vals.extend( [simbad_info.get('ra'), simbad_info.get('dec')] )
-        vals.extend( [simbad_info.get('Type'), simbad_info.get('TypeReference'), simbad_info.get('Redshift_SN')] )
-        vals.extend( [simbad_info.get('HostName'), simbad_info.get('HostType'), simbad_info.get('Redshift_Gal')] )
-        vals.append( simbad_info.get('Notes') )
+        info.update( get_SN_info_simbad( objname ) )
+        for k in ['RA','Decl','Type','TypeReference','Redshift_SN','HostName','HostType','Redshift_Gal','Notes']:
+            vals.append( info.get(k) )
         # assume all newly-inserted objects are not public
         vals.append( 0 )
         # now go ahead and put it in
