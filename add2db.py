@@ -2,17 +2,11 @@
 Adding new files/objects/spectralruns to the database!
 
 
-PLAN:
-
-1) a folder is edited, and into it was placed a .flm file with associated .fits
-2) that change is noted, and that night the update command is run
-3) update runs yield_all_spectra on the folder
-4) first handle the objects: a function that takes in the flm,fits,folderpath and 
-   either creates a new object and gives the objid or just gives the already-extant obsid
-5) second handle the spectralrun: a function that takes in the flm,fits,folderpath and 
-   either creates a new spectralrun row and gives the runid or just gives the already-extant runid
-6) third actually pull all the info out of the flm,fits files and construct the
-   insert command.
+Any time a folder is changed, run the appropriate function:
+ - import_spec_from_folder( path_to_folder )
+ - import_phot_from_folder( path_to_folder )
+ 
+-- ishivvers, May 2015
 """
 
 import MySQLdb
@@ -20,9 +14,13 @@ import MySQLdb.cursors
 import credentials as creds
 import re
 import os
+from glob import glob
 from scriptsLib import *
-
 DB = MySQLdb.connect(host=creds.host, user=creds.user, passwd=creds.passwd, db=creds.db, cursorclass=MySQLdb.cursors.DictCursor)
+
+#################################################################
+# helper functions
+#################################################################
 
 def print_sql( sql, vals=None ):
     """
@@ -53,11 +51,12 @@ def handle_object( objname ):
         sqlinsert = "INSERT INTO objects (ObjName, RA, Decl, Type, TypeReference, Redshift_SN, HostName, HostType, Redshift_Gal, Notes, Public) "+\
                                  "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"
         vals = [objname]
-        # parse rochester to get info
+        # parse rochester to get info. all characters are lowercase in ROCHESTER
         info = get_SN_info_rochester( objname.lower().replace(' ','') )
-        # parse simbad to attempt to find more info
+        # parse simbad to attempt to find more info. simbad understands a variety of name formats
         info.update( get_SN_info_simbad( objname ) )
         for k in ['RA','Decl','Type','TypeReference','Redshift_SN','HostName','HostType','Redshift_Gal','Notes']:
+            # if value wasn't found, value is None (NULL in MySQL)
             vals.append( info.get(k) )
         # assume all newly-inserted objects are not public
         vals.append( 0 )
@@ -73,7 +72,7 @@ def handle_object( objname ):
 
 def handle_spectralrun( fitsfile, objname ):
     """
-    fitsfile should be absolute path.
+    fitsfile should be absolute path. objname should be as you want it in the SNDB.
     """
     # parse the input files to find the runinfo
     info = get_info_spec_fitsfile( fitsfile )
@@ -106,20 +105,17 @@ def handle_spectralrun( fitsfile, objname ):
         c.close()
         return res['RunID']
         
-def handle_new_spectrum( flmfile, fitsfile, folder ):
+def handle_new_spectrum( flmfile, fitsfile, objname ):
     """
-    flmfile and fitsfile should be absolute paths, folder should be just the name of the 
-     folder hosting these data (associated with object name).
+    flmfile and fitsfile should be absolute paths, objname should be the name of the 
+     object. can be in folder format instead of DB format.
     """
-    # parse the filename
-    if re.search( '[sS][nN]\d{4}.+', folder ):
-        # massage all SN formats into the normal SN format in the DB
-        objname = folder.replace('sn','SN ')
+    # parse the objname if it's not in DB format
+    if re.search( '[sS][nN]\d{4}.+', objname ):
+        # massage folder formats into the normal SN format in the DB
+        objname = objname.replace('sn','SN ')
         if re.search( '\d{4}[a-zA-Z]$', objname ):
             objname = objname.upper()
-    else:
-        # if it's not a normal SN name, just pass it through
-        objname = folder
     # first see if this file is already in the database
     sqlfind = 'SELECT SpecID FROM spectra WHERE (Filename = %s) and (Filepath = %s);'
     fpath, fname = os.path.split( flmfile )
@@ -162,10 +158,17 @@ def handle_new_spectrum( flmfile, fitsfile, folder ):
         c.close()
         return res['SpecID']
 
-def handle_new_lightcurve( photfile ):
+def handle_new_lightcurve( photfile, objname ):
     """
-    photfile should be absolute path to new lightcurve file.
+    photfile should be absolute path to new lightcurve file. objname should be the name of the 
+     object. can be in folder format instead of DB format.
     """
+    # parse the objname if it's not in DB format
+    if re.search( '[sS][nN]\d{4}.+', objname ):
+        # massage folder formats into the normal SN format in the DB
+        objname = objname.replace('sn','SN ')
+        if re.search( '\d{4}[a-zA-Z]$', objname ):
+            objname = objname.upper()
     fpath,fname = os.path.split( f )
     # trim the fpath relative to the Data directory
     fpath = fpath[ fpath.index('Data') : ]
@@ -180,17 +183,6 @@ def handle_new_lightcurve( photfile ):
         public = 1
     else:
         public = 0
-    # find the object name
-    objname = fname.split('.')[0]
-    # parse the filename
-    if re.search( '[sS][nN]\d{4}.+', folder ):
-        # massage all SN formats into the normal SN format in the DB
-        objname = objname.replace('sn','SN ')
-        if re.search( '\d{4}[a-zA-Z]$', objname ):
-            objname = objname.upper()
-    else:
-        # if it's not a normal SN name, just pass it through
-        objname = folder
     # get the object id
     objid = handle_object( objname )
     # pull info from photfile
@@ -217,11 +209,27 @@ def handle_new_lightcurve( photfile ):
     c.close()
     return res['PhotID']
 
-def run_on_folder( folder ):
+#################################################################
+# main functions
+#################################################################
+
+def import_spec_from_folder( folder ):
+    """
+    Scan a folder for any flm files not in the DB, and insert them appropriately.
+    """
     specs = yield_all_spectra( folder )
     for flm,fit in specs:
-        print flm,':::',fit
+        print flm,'is associated with',fit
         folder = os.path.split(os.path.split( flm )[0])[1]
         specid = handle_new_spectrum( flm, fit, folder )
-        print 'inserted with SpecID =',specid
-        break
+        print '\ninserted with SpecID =',specid
+
+def import_phot_from_folder( folder ):
+    """
+    Scan a folder for any phot (*.dat) files not in the DB, and insert them appropriately.
+    """
+    for f in glob( folder+'/*.dat' ):
+        photfile = f
+        objname = f.split('.')[0]
+        handle_new_lightcurve( photfile, objname )
+    
