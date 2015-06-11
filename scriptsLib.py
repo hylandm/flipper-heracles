@@ -426,19 +426,64 @@ def getSNID( flmfile ):
     except:
         return 'NoMatch','NoMatch'
 
-def getSNR( flmfile, w=20 ):
+def smooth( x, y, width, window='hanning' ):
+    '''
+    Smooth the input spectrum y (on wl x) with a <window> kernel
+     of width ~ width (in x units)
+    <window> options: 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+    Returns the smoothed y array.
+    '''
+    if y.ndim != 1:
+        raise ValueError, "smooth only accepts 1 dimension arrays."
+    if x.size != y.size:
+        raise ValueError, "Input x,y vectors must be of same size"
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError, "Window must be one of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+    avg_width = np.abs(np.mean(x[1:]-x[:-1]))
+    window_len = int(round(width/avg_width))
+    if y.size < window_len:
+        raise ValueError, "Input vector needs to be bigger than window size."
+    if window_len<3:
+        return y
+
+    s=np.r_[y[window_len-1:0:-1],y,y[-1:-window_len:-1]]
+
+    if window == 'flat': #moving average
+        w=np.ones(window_len,'d')
+    else:
+        w=eval('np.'+window+'(window_len)')
+
+    y=np.convolve(w/w.sum(),s,mode='valid')
+    yout = y[(window_len/2):-(window_len/2)]
+    if len(yout) < len(x):
+        yout = y[(window_len/2):-(window_len/2)+1]
+    elif len(yout) > len(x):
+        yout = y[(window_len/2):-(window_len/2)-1]
+    return yout
+
+def getSNR( flmfile, wsig=100, wnoise=500, plot=False ):
     """
-    Calculates the S/N ratio at the central wavelength, in a 
-     bin +/-<w> angstroms wide.
-    Will remove a polynomial fit before calculating noise.
+    Estimates the average S/N ratio for a spectrum.
+    <wsig>: the smoothing window used to estimate the signal (A)
+    <wnoise>: the smoothing window used to average the noise (A)
     """
     d = np.loadtxt( flmfile )
-    midwl = d[len(d)/2, 0]
-    m = (d[:,0] > midwl-w) & (d[:,0] < midwl+w)
-    # fit and subtract a line from noise
-    p = np.poly1d( np.polyfit( d[:,0][m], d[:,1][m], 3 ) )
-    std = np.std( d[:,1][m] - p(d[:,0][m]) )
-    return np.abs(np.mean( d[:,1][m] ) / std)
+    sig = smooth( d[:,0], d[:,1], wsig )
+    n = np.abs( d[:,1] - sig )
+    noise = smooth( d[:,0], n, wnoise )
+    if plot:
+        plt.figure()
+        plt.plot( d[:,0], d[:,1], 'k', label='data' )
+        plt.plot( d[:,0], sig, 'r', label='signal' )
+        plt.plot( d[:,0], n, 'gray', label='data - signal' )
+        plt.plot( d[:,0], noise, 'orange', label='noise' )
+        plt.legend()
+        plt.xlabel('wavelength')
+        plt.ylabel('flux')
+        plt.title('SNR = %f'% np.mean(sig/noise) )
+        plt.show()
+    return np.mean( sig/noise )
+
 
 def get_info_spec_flmfile( flmfile ):
     """
