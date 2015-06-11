@@ -122,7 +122,10 @@ def get_info_image_fitsfile( fitsfile ):
         if val == None:
             pass
         elif outk in ['exptime','exptime2','date_mjd','airmass', 'utc']:
-            val = float(val)
+            try:
+                val = float(val)
+            except:
+                pass
         elif outk in ['date','dateobs']:
             val = parser.parse( val ) #parse the datetime string in a reasonable way
         elif outk == 'ra_d':
