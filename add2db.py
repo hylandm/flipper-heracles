@@ -108,7 +108,7 @@ def handle_spectralrun( fitsfile, objname ):
         c.close()
         return res['RunID']
         
-def handle_new_spectrum( flmfile, fitsfile, objname ):
+def handle_spectrum( flmfile, fitsfile, objname ):
     """
     flmfile and fitsfile should be absolute paths, objname should be the name of the 
      object. can be in folder format instead of DB format.
@@ -129,7 +129,7 @@ def handle_new_spectrum( flmfile, fitsfile, objname ):
     res = c.fetchone()
     if res:
         # file already in database!
-        return res['SpecID']
+        return res['SpecID'], False
     else:
         # need to parse the files to insert this spectrum
         sqlinsert = "INSERT INTO spectra (ObjID, RunID, Filename, Filepath, UT_Date, Airmass, Exposure, Position_Angle, Parallactic_Angle, SNR, Min, Max, Blue_Resolution, Red_Resolution, SNID_Type, SNID_Subtype) "+\
@@ -159,9 +159,9 @@ def handle_new_spectrum( flmfile, fitsfile, objname ):
         c.execute( sqlfind, [fname, fpath] )
         res = c.fetchone()
         c.close()
-        return res['SpecID']
+        return res['SpecID'], True
 
-def handle_new_lightcurve( photfile, objname ):
+def handle_lightcurve( photfile, objname ):
     """
     photfile should be absolute path to new lightcurve file. objname should be the name of the 
      object. can be in folder format instead of DB format.
@@ -222,10 +222,11 @@ def import_spec_from_folder( folder ):
     """
     specs = yield_all_spectra( folder, require_fits=True )
     for flm,fit in specs:
-        print flm,'is associated with',fit
         folder = os.path.split(os.path.split( flm )[0])[1]
-        specid = handle_new_spectrum( flm, fit, folder )
-        print '\ninserted with SpecID =',specid
+        specid,inserted = handle_spectrum( flm, fit, folder )
+        if inserted:
+            print flm,'is associated with',fit
+            print '\nSpecID =',specid
 
 def import_phot_from_folder( folder ):
     """
@@ -234,5 +235,5 @@ def import_phot_from_folder( folder ):
     for f in glob( folder+'/*.dat' ):
         photfile = f
         objname = f.split('.')[0]
-        handle_new_lightcurve( photfile, objname )
+        handle_lightcurve( photfile, objname )
     
