@@ -55,6 +55,9 @@ def handle_object( objname ):
         info = get_SN_info_rochester( objname.lower().replace(' ','') )
         # parse simbad to attempt to find more info. simbad understands a variety of name formats
         info.update( get_SN_info_simbad( objname ) )
+        # if neither method got us any where, raise an error
+        if not info:
+            raise Exception( 'Cannot find any info on this object : %s'%objname )
         for k in ['RA','Decl','Type','TypeReference','Redshift_SN','HostName','HostType','Redshift_Gal','Notes']:
             # if value wasn't found, value is None (NULL in MySQL)
             vals.append( info.get(k) )
@@ -93,9 +96,9 @@ def handle_spectralrun( fitsfile, objname ):
         return res['RunID']
     else:
         # need to parse the input files to define the spectral run
-        sqlinsert = "INSERT INTO spectralruns (UT_Date, Targets, Reducer, Observer, Instrument, Telescope) "+\
-                                      "VALUES (DATE(%s), %s, %s, %s, %s, %s);"
-        vals = [datestr, objname, info['reducer'], info['observer'], info['instrument'], info['observatory']]
+        sqlinsert = "INSERT INTO spectralruns (UT_Date, Targets, Reducer, Observer, Instrument, Telescope, Seeing) "+\
+                                      "VALUES (DATE(%s), %s, %s, %s, %s, %s, %s);"
+        vals = [datestr, objname, info.get('reducer'), info.get('observer'), info.get('instrument'), info.get('observatory'), info.get('seeing')]
         print_sql( sqlinsert, vals )
         c.execute( sqlinsert, vals )
         DB.commit()
@@ -217,7 +220,7 @@ def import_spec_from_folder( folder ):
     """
     Scan a folder for any flm files not in the DB, and insert them appropriately.
     """
-    specs = yield_all_spectra( folder )
+    specs = yield_all_spectra( folder, require_fits=True )
     for flm,fit in specs:
         print flm,'is associated with',fit
         folder = os.path.split(os.path.split( flm )[0])[1]

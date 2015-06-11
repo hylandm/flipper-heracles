@@ -18,7 +18,7 @@ from dateutil import parser
 from urllib2 import urlopen
 import julian_dates as jd
 
-def yield_all_spectra( location='/media/raid0/Data/spectra/', include_details_flm=False ):
+def yield_all_spectra( location='/media/raid0/Data/spectra/', include_details_flm=False, require_fits=False ):
     """
     Searches <location> (and subfolders) for all spectra.
     Finds all files named like *.flm and attempts to associate each with 
@@ -26,6 +26,7 @@ def yield_all_spectra( location='/media/raid0/Data/spectra/', include_details_fl
     This is an iterator, and returns paths as strings (flm, fit) one at a time.
 
     If include_details_flm == True, will include *.flm files found in a '/details/' subfolder.
+    If require_fits == True, will only yeild *.flm files with a good match for a fitsfile too.
     
     Example: 
      > s = yield_all_spectra()
@@ -54,12 +55,13 @@ def yield_all_spectra( location='/media/raid0/Data/spectra/', include_details_fl
                                 matching_fits = '%s/%s/%s' %(root,sd,bestmatch[0])
                                 break
                 # record the best matching fits file, or None if no good match found
-                fit = matching_fits
                 if not include_details_flm:
                     # do not return this pair if the flm file is in a details subfolder
                     if re.search('details', flm):
                         continue
-                yield flm, fit
+                if require_fits and (matching_fits == None):
+                    continue
+                yield flm, matching_fits
  
 def yield_all_images( location='/media/raid0/Data/nickel/follow/' ):
     """
