@@ -62,7 +62,7 @@ def runSNID( inn ):
     insertIntoDB( t, st, specID )
 
 def insertIntoDB( t,st,specID ):
-    sql = 'UPDATE spectra SET SNID_Type="%s",SNID_Subtype="%s" WHERE SpecID=%d;' %(t,st,snr,specID)
+    sql = 'UPDATE spectra SET SNID_Type="%s",SNID_Subtype="%s" WHERE SpecID=%d;' %(t,st,specID)
     c = DB.cursor()
     print sql
     c.execute( sql )
