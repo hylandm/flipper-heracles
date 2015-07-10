@@ -88,11 +88,17 @@ def snidAll( ):
     sql = 'Select Filepath,Filename,SpecID from spectra;'
     c.execute( sql )
     allfiles = []
+    open('specErrors.txt','w').write('#SpecID : Filepath : Filename\n')
     while True:
         res = c.fetchone()
         if res == None:
             break
-        allfiles.append( [res['SpecID'], res['Filepath']+'/'+res['Filename']] )
+        try:
+            allfiles.append( [res['SpecID'], res['Filepath']+'/'+res['Filename']] )
+        except:
+            # this spectrum is listed in the DB incorrectly
+            print 'Failed:',res['SpecID']
+            open('specErrors.txt','a').write( '%d : %s : %s\n'%(res['SpecID'], str(res['Filepath']), str(res['Filename'])) )
     c.close()
     # now run all files in parallel
     # start the processor pool
