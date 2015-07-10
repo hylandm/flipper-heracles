@@ -104,7 +104,7 @@ def snidAll( ):
     # start the processor pool
     print 'starting SNID calculations...'
     pool = multiprocessing.Pool( 3 )
-    pool.map( runSNID, fs )
+    pool.map( runSNID, allfiles )
 
   
 if __name__ == '__main__':
