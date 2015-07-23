@@ -103,7 +103,7 @@ def snidAll( ):
     # now run all files in parallel
     # start the processor pool
     print 'starting SNID calculations...'
-    pool = multiprocessing.Pool( 3 )
+    pool = multiprocessing.Pool( 2 )
     pool.map( runSNID, allfiles )
 
   
